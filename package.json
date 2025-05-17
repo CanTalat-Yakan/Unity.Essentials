@@ -1,0 +1,17 @@
+{
+    "name": "com.unityessentials.essentials",
+    "version": "1.0.0",
+    "displayName": "UnityEssentials Essentials",
+    "description": "This is a part of the UnityEssentials Ecosystem",
+    "unity": "2022.1",
+    "documentationUrl": "",
+    "changelogUrl": "",
+    "licensesUrl": "",
+    "dependencyList": [],
+    "keywords": [],
+    "author": {
+        "name": "Unity Essentials",
+        "email": "",
+        "url": ""
+    }
+}
