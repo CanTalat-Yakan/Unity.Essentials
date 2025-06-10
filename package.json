@@ -4,7 +4,7 @@
   "displayName": "UnityEssentials Core",
   "description": "This is a part of the UnityEssentials Ecosystem",
   "unity": "2022.1",
-  "unityRelease": null,
+  "unityRelease": "",
   "dependencies": {},
   "keywords": [],
   "author": {
