@@ -4,14 +4,17 @@
   "displayName": "UnityEssentials Essentials",
   "description": "This is a part of the UnityEssentials Ecosystem",
   "unity": "2022.1",
+  "unityRelease": null,
+  "dependencies": {},
+  "keywords": [],
+  "author": {
+    "name": "Can Talat Yakan",
+    "email": "",
+    "url": ""
+  },
   "documentationUrl": "",
   "changelogUrl": "",
   "licensesUrl": "",
-  "dependencies": { },
-  "keywords": [],
-  "author": {
-    "name": "Unity Essentials",
-    "email": "",
-    "url": ""
-  }
+  "samples": [],
+  "hideInEditor": true
 }
