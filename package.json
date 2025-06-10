@@ -1,7 +1,7 @@
 {
   "name": "com.unityessentials.core",
   "version": "1.0.0",
-  "displayName": "UnityEssentials Essentials",
+  "displayName": "UnityEssentials Core",
   "description": "This is a part of the UnityEssentials Ecosystem",
   "unity": "2022.1",
   "unityRelease": null,
