@@ -12,7 +12,7 @@ namespace UnityEssentials.UnityEssentials.Editor
     public class UnityEssentialsPackageManager : MonoBehaviour
     {
         private const string GithubUser = "CanTalat-Yakan";
-        private const string MenuPath = "Tools/Install/Update UnityEssentials";
+        private const string MenuPath = "Tools/Install & Update UnityEssentials";
         private const int HttpTimeoutSeconds = 30;
 
         [MenuItem(MenuPath, priority = -10000)]
