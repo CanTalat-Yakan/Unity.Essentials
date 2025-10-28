@@ -12,7 +12,7 @@ namespace UnityEssentials.UnityEssentials.Editor
     public class UnityEssentialsPackageManager : MonoBehaviour
     {
         private const string GithubUser = "CanTalat-Yakan";
-        private const string MenuPath = "Tools/Install & Update UnityEssentials";
+        private const string MenuPath = "Tools/Install/Update UnityEssentials";
         private const int HttpTimeoutSeconds = 30;
 
         [MenuItem(MenuPath, priority = -10000)]
@@ -20,6 +20,13 @@ namespace UnityEssentials.UnityEssentials.Editor
         {
             try
             {
+                // Ask whether to include Unity.Templates.* repos (these may contain large assets)
+                bool includeTemplates = EditorUtility.DisplayDialog(
+                    "UnityEssentials Installer",
+                    "Do you want to include Unity.Templates.* repositories?\nThese often contain large assets and textures and may take longer to download.",
+                    "Include",
+                    "Skip");
+
                 EditorUtility.DisplayProgressBar("UnityEssentials Installer", "Querying GitHub repositories…", 0f);
 
                 // Get installed packages list once to detect install vs update
@@ -50,8 +57,11 @@ namespace UnityEssentials.UnityEssentials.Editor
                 foreach (var r in repos)
                 {
                     if (r == null || string.IsNullOrEmpty(r.name)) continue;
-                    if (r.name.StartsWith("Unity.", StringComparison.Ordinal))
-                        candidates.Add(r);
+                    if (!r.name.StartsWith("Unity.", StringComparison.Ordinal)) continue;
+                    // Optionally skip template repositories
+                    if (!includeTemplates && r.name.StartsWith("Unity.Templates.", StringComparison.Ordinal))
+                        continue;
+                    candidates.Add(r);
                 }
 
                 if (candidates.Count == 0)
@@ -63,6 +73,7 @@ namespace UnityEssentials.UnityEssentials.Editor
 
                 int installedCount = 0;
                 int updatedCount = 0;
+                int upToDateCount = 0;
                 var successes = new List<string>();
                 var failures = new List<string>();
 
@@ -86,6 +97,11 @@ namespace UnityEssentials.UnityEssentials.Editor
                     var gitUrl = $"https://github.com/{repo.owner?.login}/{repo.name}.git#{repo.default_branch}";
                     EditorUtility.DisplayProgressBar("UnityEssentials Installer", $"{action} {packageName}…", progress);
 
+                    // Keep previous packageId to detect if update actually changed anything
+                    string prevPackageId = null;
+                    if (isInstalled && installedByName.TryGetValue(packageName, out var prevInfo))
+                        prevPackageId = prevInfo.packageId;
+
                     var addReq = Client.Add(gitUrl);
                     var start = DateTime.UtcNow;
                     while (!addReq.IsCompleted)
@@ -97,8 +113,28 @@ namespace UnityEssentials.UnityEssentials.Editor
 
                     if (addReq.Status == StatusCode.Success)
                     {
-                        if (isInstalled) updatedCount++; else installedCount++;
-                        successes.Add(packageName + " -> " + (addReq.Result?.packageId ?? gitUrl));
+                        var resultName = addReq.Result?.name ?? packageName;
+                        var newPackageId = addReq.Result?.packageId ?? gitUrl;
+
+                        if (isInstalled)
+                        {
+                            if (!string.IsNullOrEmpty(prevPackageId) && !string.IsNullOrEmpty(newPackageId) && !string.Equals(prevPackageId, newPackageId, StringComparison.Ordinal))
+                            {
+                                updatedCount++;
+                                successes.Add(resultName + " updated -> " + newPackageId);
+                            }
+                            else
+                            {
+                                upToDateCount++;
+                                successes.Add(resultName + " already up-to-date");
+                            }
+                        }
+                        else
+                        {
+                            installedCount++;
+                            successes.Add(resultName + " installed -> " + newPackageId);
+                        }
+
                         // refresh installed cache entry
                         if (!string.IsNullOrEmpty(addReq.Result?.name))
                             installedByName[addReq.Result.name] = addReq.Result;
@@ -117,6 +153,7 @@ namespace UnityEssentials.UnityEssentials.Editor
                 sb.AppendLine($"Candidates: {candidates.Count}");
                 sb.AppendLine($"Installed: {installedCount}");
                 sb.AppendLine($"Updated: {updatedCount}");
+                if (upToDateCount > 0) sb.AppendLine($"Up-to-date: {upToDateCount}");
                 if (successes.Count > 0)
                 {
                     sb.AppendLine();
@@ -132,7 +169,7 @@ namespace UnityEssentials.UnityEssentials.Editor
 
                 Debug.Log(sb.ToString());
                 var shortSummary =
-                    $"Found {candidates.Count} candidate repos with prefix 'Unity.'.\nInstalled {installedCount}, Updated {updatedCount}, Failed {failures.Count}.";
+                    $"Found {candidates.Count} candidate repos with prefix 'Unity.'{(includeTemplates ? " (including templates)" : " (templates skipped)")}.\nInstalled {installedCount}, Updated {updatedCount}, Up-to-date {upToDateCount}, Failed {failures.Count}.";
                 EditorUtility.DisplayDialog("UnityEssentials Installer", shortSummary, "OK");
             }
             catch (Exception ex)
