@@ -4,7 +4,6 @@ using System.Text;
 using System.Threading;
 using UnityEditor;
 using UnityEditor.PackageManager;
-using UnityEditor.PackageManager.Requests;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -13,7 +12,7 @@ namespace UnityEssentials.UnityEssentials.Editor
     public class UnityEssentialsPackageManager : MonoBehaviour
     {
         private const string GithubUser = "CanTalat-Yakan";
-        private const string MenuPath = "Tools/Install UnityEssentials";
+        private const string MenuPath = "Tools/Install & Update UnityEssentials";
         private const int HttpTimeoutSeconds = 30;
 
         [MenuItem(MenuPath, priority = -10000)]
@@ -22,6 +21,22 @@ namespace UnityEssentials.UnityEssentials.Editor
             try
             {
                 EditorUtility.DisplayProgressBar("UnityEssentials Installer", "Querying GitHub repositories…", 0f);
+
+                // Get installed packages list once to detect install vs update
+                var listReq = Client.List();
+                while (!listReq.IsCompleted)
+                {
+                    Thread.Sleep(20);
+                }
+                var installedByName = new Dictionary<string, UnityEditor.PackageManager.PackageInfo>(StringComparer.OrdinalIgnoreCase);
+                if (listReq.Status == StatusCode.Success && listReq.Result != null)
+                {
+                    foreach (var p in listReq.Result)
+                    {
+                        if (!string.IsNullOrEmpty(p.name) && !installedByName.ContainsKey(p.name))
+                            installedByName.Add(p.name, p);
+                    }
+                }
 
                 var repos = FetchAllRepos(GithubUser);
                 if (repos == null)
@@ -46,6 +61,8 @@ namespace UnityEssentials.UnityEssentials.Editor
                     return;
                 }
 
+                int installedCount = 0;
+                int updatedCount = 0;
                 var successes = new List<string>();
                 var failures = new List<string>();
 
@@ -55,45 +72,54 @@ namespace UnityEssentials.UnityEssentials.Editor
                     float progress = (float)i / Math.Max(1, candidates.Count);
                     EditorUtility.DisplayProgressBar("UnityEssentials Installer", $"Checking {repo.name} ({i + 1}/{candidates.Count})…", progress);
 
-                    // Verify package.json exists at root on default branch
-                    var packageJsonUrl = $"https://raw.githubusercontent.com/{repo.owner?.login}/{repo.name}/{repo.default_branch}/package.json";
-                    if (!UrlExists(packageJsonUrl))
+                    // Try to resolve package name from package.json on default branch
+                    if (!TryGetPackageNameFromRepo(repo, out var packageName))
                     {
-                        failures.Add($"{repo.name}: package.json not found on branch {repo.default_branch}");
+                        failures.Add($"{repo.name}: package.json missing or invalid on branch {repo.default_branch}");
                         continue;
                     }
 
-                    // Install via UPM from git; pin to default branch
+                    bool isInstalled = installedByName.ContainsKey(packageName);
+                    string action = isInstalled ? "Updating" : "Installing";
+
+                    // Install/update via UPM from git; pin to default branch
                     var gitUrl = $"https://github.com/{repo.owner?.login}/{repo.name}.git#{repo.default_branch}";
-                    EditorUtility.DisplayProgressBar("UnityEssentials Installer", $"Installing {repo.name}…", progress);
+                    EditorUtility.DisplayProgressBar("UnityEssentials Installer", $"{action} {packageName}…", progress);
 
                     var addReq = Client.Add(gitUrl);
                     var start = DateTime.UtcNow;
                     while (!addReq.IsCompleted)
                     {
-                        // Update progress a little while waiting
                         var elapsed = (float)(DateTime.UtcNow - start).TotalSeconds;
-                        EditorUtility.DisplayProgressBar("UnityEssentials Installer", $"Installing {repo.name}… ({elapsed:0}s)", progress + 0.001f * (i + 1));
+                        EditorUtility.DisplayProgressBar("UnityEssentials Installer", $"{action} {packageName}… ({elapsed:0}s)", progress + 0.001f * (i + 1));
                         Thread.Sleep(50);
                     }
 
                     if (addReq.Status == StatusCode.Success)
                     {
-                        successes.Add(repo.name + " -> " + addReq.Result?.packageId);
+                        if (isInstalled) updatedCount++; else installedCount++;
+                        successes.Add(packageName + " -> " + (addReq.Result?.packageId ?? gitUrl));
+                        // refresh installed cache entry
+                        if (!string.IsNullOrEmpty(addReq.Result?.name))
+                            installedByName[addReq.Result.name] = addReq.Result;
                     }
                     else
                     {
                         string err = addReq.Error != null ? addReq.Error.message : "Unknown error";
-                        failures.Add($"{repo.name}: {err}");
+                        failures.Add($"{packageName}: {err}");
                     }
                 }
 
                 EditorUtility.ClearProgressBar();
 
                 var sb = new StringBuilder();
-                sb.AppendLine("Install complete.");
+                sb.AppendLine("Install/Update complete.");
+                sb.AppendLine($"Candidates: {candidates.Count}");
+                sb.AppendLine($"Installed: {installedCount}");
+                sb.AppendLine($"Updated: {updatedCount}");
                 if (successes.Count > 0)
                 {
+                    sb.AppendLine();
                     sb.AppendLine("Successes:");
                     foreach (var s in successes) sb.AppendLine("  • " + s);
                 }
@@ -105,7 +131,9 @@ namespace UnityEssentials.UnityEssentials.Editor
                 }
 
                 Debug.Log(sb.ToString());
-                EditorUtility.DisplayDialog("UnityEssentials Installer", sb.ToString(), "OK");
+                var shortSummary =
+                    $"Found {candidates.Count} candidate repos with prefix 'Unity.'.\nInstalled {installedCount}, Updated {updatedCount}, Failed {failures.Count}.";
+                EditorUtility.DisplayDialog("UnityEssentials Installer", shortSummary, "OK");
             }
             catch (Exception ex)
             {
@@ -130,6 +158,29 @@ namespace UnityEssentials.UnityEssentials.Editor
 
         [Serializable]
         private class RepoListWrapper { public Repo[] items; }
+
+        [Serializable]
+        private class PackageJson { public string name; }
+
+        private static bool TryGetPackageNameFromRepo(Repo repo, out string packageName)
+        {
+            packageName = null;
+            if (repo == null || string.IsNullOrEmpty(repo.name) || string.IsNullOrEmpty(repo.default_branch)) return false;
+            var packageJsonUrl = $"https://raw.githubusercontent.com/{repo.owner?.login}/{repo.name}/{repo.default_branch}/package.json";
+            var json = HttpGet(packageJsonUrl, out long code, out var _);
+            if (code < 200 || code >= 300 || string.IsNullOrEmpty(json)) return false;
+            try
+            {
+                var pj = JsonUtility.FromJson<PackageJson>(json);
+                if (pj == null || string.IsNullOrEmpty(pj.name)) return false;
+                packageName = pj.name;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         private static List<Repo> FetchAllRepos(string user)
         {
@@ -164,12 +215,6 @@ namespace UnityEssentials.UnityEssentials.Editor
                 page++;
             }
             return all;
-        }
-
-        private static bool UrlExists(string url)
-        {
-            var _ = HttpGet(url, out long code, out var headers);
-            return code >= 200 && code < 300;
         }
 
         private static string HttpGet(string url, out long responseCode, out Dictionary<string, string> responseHeaders)
