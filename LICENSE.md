@@ -1,4 +1,4 @@
-Modified MIT License
+MIT License
 
 Copyright (c) 2025 CanTalat-Yakan
 

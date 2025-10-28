@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "displayName": "UnityEssentials Core",
   "description": "This is a part of the UnityEssentials Ecosystem",
-  "unity": "2022.1",
+  "unity": "6000.0",
   "unityRelease": "",
   "dependencies": {},
   "keywords": [],
