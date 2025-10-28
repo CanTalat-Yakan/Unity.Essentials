@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,7 +8,7 @@ using UnityEditor.PackageManager;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace UnityEssentials.UnityEssentials.Editor
+namespace UnityEssentials
 {
     public class UnityEssentialsPackageManager : MonoBehaviour
     {
@@ -383,3 +384,4 @@ namespace UnityEssentials.UnityEssentials.Editor
         }
     }
 }
+#endif

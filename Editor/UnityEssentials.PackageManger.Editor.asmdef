@@ -1,5 +1,5 @@
 {
-    "name": "UnityEssentials.Editor",
+    "name": "UnityEssentials.PackageManger.Editor",
     "rootNamespace": "UnityEssentials",
     "references": [],
     "includePlatforms": [],
