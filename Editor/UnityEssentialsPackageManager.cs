@@ -76,6 +76,10 @@ namespace UnityEssentials.UnityEssentials.Editor
                 int upToDateCount = 0;
                 var successes = new List<string>();
                 var failures = new List<string>();
+                var skippedNonPackages = new List<string>();
+
+                // cache GitHub token once
+                var ghToken = GetGitHubToken();
 
                 for (int i = 0; i < candidates.Count; i++)
                 {
@@ -84,13 +88,30 @@ namespace UnityEssentials.UnityEssentials.Editor
                     EditorUtility.DisplayProgressBar("UnityEssentials Installer", $"Checking {repo.name} ({i + 1}/{candidates.Count})…", progress);
 
                     // Try to resolve package name from package.json on default branch
-                    if (!TryGetPackageNameFromRepo(repo, out var packageName))
+                    if (!TryGetPackageNameFromRepo(repo, out var packageName, out var reason))
                     {
-                        failures.Add($"{repo.name}: package.json missing or invalid on branch {repo.default_branch}");
+                        skippedNonPackages.Add($"{repo.name}: {reason}");
                         continue;
                     }
 
                     bool isInstalled = installedByName.ContainsKey(packageName);
+
+                    // If installed and we have a GitHub token, check HEAD commit; skip if up to date
+                    if (isInstalled && !string.IsNullOrEmpty(ghToken) && installedByName.TryGetValue(packageName, out var prevInfo))
+                    {
+                        if (IsGitPackage(prevInfo.packageId))
+                        {
+                            var installedHash = ExtractGitCommitHash(prevInfo.packageId);
+                            var latestSha = GetLatestCommitSha(repo);
+                            if (!string.IsNullOrEmpty(installedHash) && !string.IsNullOrEmpty(latestSha) && string.Equals(installedHash, latestSha, StringComparison.OrdinalIgnoreCase))
+                            {
+                                upToDateCount++;
+                                successes.Add(packageName + " already up-to-date (HEAD match)");
+                                continue;
+                            }
+                        }
+                    }
+
                     string action = isInstalled ? "Updating" : "Installing";
 
                     // Install/update via UPM from git; pin to default branch
@@ -99,8 +120,8 @@ namespace UnityEssentials.UnityEssentials.Editor
 
                     // Keep previous packageId to detect if update actually changed anything
                     string prevPackageId = null;
-                    if (isInstalled && installedByName.TryGetValue(packageName, out var prevInfo))
-                        prevPackageId = prevInfo.packageId;
+                    if (isInstalled && installedByName.TryGetValue(packageName, out var prevInfo2))
+                        prevPackageId = prevInfo2.packageId;
 
                     var addReq = Client.Add(gitUrl);
                     var start = DateTime.UtcNow;
@@ -154,11 +175,11 @@ namespace UnityEssentials.UnityEssentials.Editor
                 sb.AppendLine($"Installed: {installedCount}");
                 sb.AppendLine($"Updated: {updatedCount}");
                 if (upToDateCount > 0) sb.AppendLine($"Up-to-date: {upToDateCount}");
-                if (successes.Count > 0)
+                if (skippedNonPackages.Count > 0)
                 {
                     sb.AppendLine();
-                    sb.AppendLine("Successes:");
-                    foreach (var s in successes) sb.AppendLine("  • " + s);
+                    sb.AppendLine("Skipped (not a valid UPM package):");
+                    foreach (var s in skippedNonPackages) sb.AppendLine("  • " + s);
                 }
                 if (failures.Count > 0)
                 {
@@ -169,7 +190,7 @@ namespace UnityEssentials.UnityEssentials.Editor
 
                 Debug.Log(sb.ToString());
                 var shortSummary =
-                    $"Found {candidates.Count} candidate repos with prefix 'Unity.'{(includeTemplates ? " (including templates)" : " (templates skipped)")}.\nInstalled {installedCount}, Updated {updatedCount}, Up-to-date {upToDateCount}, Failed {failures.Count}.";
+                    $"Found {candidates.Count} candidate repos with prefix 'Unity.'{(includeTemplates ? " (including templates)" : " (templates skipped)")}.\nInstalled {installedCount}, Updated {updatedCount}, Up-to-date {upToDateCount}, Skipped {skippedNonPackages.Count}, Failed {failures.Count}.";
                 EditorUtility.DisplayDialog("UnityEssentials Installer", shortSummary, "OK");
             }
             catch (Exception ex)
@@ -197,24 +218,38 @@ namespace UnityEssentials.UnityEssentials.Editor
         private class RepoListWrapper { public Repo[] items; }
 
         [Serializable]
-        private class PackageJson { public string name; }
+        private class PackageJson { public string name; public string version; }
 
-        private static bool TryGetPackageNameFromRepo(Repo repo, out string packageName)
+        [Serializable]
+        private class CommitInfo { public string sha; }
+
+        private static bool TryGetPackageNameFromRepo(Repo repo, out string packageName, out string reason)
         {
             packageName = null;
-            if (repo == null || string.IsNullOrEmpty(repo.name) || string.IsNullOrEmpty(repo.default_branch)) return false;
+            reason = null;
+            if (repo == null || string.IsNullOrEmpty(repo.name) || string.IsNullOrEmpty(repo.default_branch)) { reason = "Invalid repo metadata"; return false; }
             var packageJsonUrl = $"https://raw.githubusercontent.com/{repo.owner?.login}/{repo.name}/{repo.default_branch}/package.json";
-            var json = HttpGet(packageJsonUrl, out long code, out var _);
-            if (code < 200 || code >= 300 || string.IsNullOrEmpty(json)) return false;
+            var json = HttpGet(packageJsonUrl, out long code, out var headers);
+            if (code == 403)
+            {
+                if (headers != null && headers.TryGetValue("x-ratelimit-remaining", out var remaining) && remaining == "0")
+                    reason = "GitHub rate limit exceeded while fetching package.json";
+                else
+                    reason = "Access forbidden while fetching package.json";
+                return false;
+            }
+            if (code < 200 || code >= 300 || string.IsNullOrEmpty(json)) { reason = "package.json missing or unreachable"; return false; }
             try
             {
                 var pj = JsonUtility.FromJson<PackageJson>(json);
-                if (pj == null || string.IsNullOrEmpty(pj.name)) return false;
+                if (pj == null || string.IsNullOrEmpty(pj.name)) { reason = "package.json has no 'name'"; return false; }
+                if (!pj.name.StartsWith("com.", StringComparison.OrdinalIgnoreCase)) { reason = $"invalid package name '{pj.name}' (must start with 'com.')"; return false; }
                 packageName = pj.name;
                 return true;
             }
-            catch
+            catch (Exception e)
             {
+                reason = "Failed to parse package.json: " + e.Message;
                 return false;
             }
         }
@@ -229,7 +264,7 @@ namespace UnityEssentials.UnityEssentials.Editor
                 var json = HttpGet(url, out long code, out Dictionary<string, string> headers);
                 if (code == 403 && headers != null && headers.TryGetValue("x-ratelimit-remaining", out var remaining) && remaining == "0")
                 {
-                    Debug.LogError("GitHub rate limit exceeded. Try again later or authenticate.");
+                    Debug.LogError("GitHub rate limit exceeded. Try again later or authenticate with a token (GITHUB_TOKEN). ");
                     return null;
                 }
                 if (string.IsNullOrEmpty(json)) break;
@@ -261,6 +296,12 @@ namespace UnityEssentials.UnityEssentials.Editor
             {
                 req.timeout = HttpTimeoutSeconds;
                 req.SetRequestHeader("User-Agent", "UnityEssentialsPackageInstaller");
+                var token = GetGitHubToken();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    // Adding token helps avoid rate limits for api.github.com and can also work for raw.githubusercontent.com
+                    req.SetRequestHeader("Authorization", "token " + token);
+                }
                 var op = req.SendWebRequest();
                 var start = DateTime.UtcNow;
                 while (!op.isDone)
@@ -289,6 +330,55 @@ namespace UnityEssentials.UnityEssentials.Editor
                     // ignore
                 }
                 return ok ? req.downloadHandler.text : null;
+            }
+        }
+
+        private static string GetGitHubToken()
+        {
+            // Read from environment variable if present
+            try
+            {
+                var token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+                return string.IsNullOrEmpty(token) ? null : token.Trim();
+            }
+            catch { return null; }
+        }
+
+        private static bool IsGitPackage(string packageId)
+        {
+            if (string.IsNullOrEmpty(packageId)) return false;
+            return packageId.StartsWith("git+", StringComparison.OrdinalIgnoreCase) || packageId.Contains("github.com");
+        }
+
+        private static string ExtractGitCommitHash(string packageId)
+        {
+            if (string.IsNullOrEmpty(packageId)) return null;
+            // Typical git packageId contains '@<commit>' at the end
+            int at = packageId.LastIndexOf('@');
+            if (at >= 0 && at < packageId.Length - 1)
+            {
+                var hash = packageId.Substring(at + 1).Trim();
+                // strip possible trailing quotes or whitespace
+                if (hash.Length > 0) return hash;
+            }
+            return null;
+        }
+
+        private static string GetLatestCommitSha(Repo repo)
+        {
+            if (repo == null || string.IsNullOrEmpty(repo.owner?.login) || string.IsNullOrEmpty(repo.name) || string.IsNullOrEmpty(repo.default_branch))
+                return null;
+            var url = $"https://api.github.com/repos/{repo.owner.login}/{repo.name}/commits/{repo.default_branch}";
+            var json = HttpGet(url, out long code, out var _);
+            if (code < 200 || code >= 300 || string.IsNullOrEmpty(json)) return null;
+            try
+            {
+                var ci = JsonUtility.FromJson<CommitInfo>(json);
+                return ci?.sha;
+            }
+            catch
+            {
+                return null;
             }
         }
     }
