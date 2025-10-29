@@ -26,8 +26,6 @@ Install the Unity Essentials package via Unity's Package Manager, then install m
 
 ## Available packages in this project
 
-Below is an up-to-date list of UnityEssentials modules detected under `Assets/Repositories` in this workspace. These are ready to use in-editor; you can add/remove or update them anytime via Tools → Install & Update UnityEssentials.
-
 - Unity.Core.AudioMixer
 - Unity.Core.HighDefinitionRenderPipeline
 - Unity.Core.SettingsMenu
