@@ -22,7 +22,7 @@ Install the Unity Essentials Core package via Unity's Package Manager, then inst
     - Tools → Install & Update UnityEssentials
     - Install all or select individual modules; run again anytime to update
 
-> Quick overview: Add the package via Package Manager, then use Tools → Install & Update UnityEssentials to select and update the modules you need. Modules are lightweight, editor‑first, and live under the `UnityEssentials` namespace; add or remove them at any time.
+> Quick overview: Add the package via Package Manager, then use Tools → Install & Update UnityEssentials to select and update the modules you need. Modules are lightweight, editor‑first, and live under the `UnityEssentials` namespace.
 
 ## Available packages in this project
 
