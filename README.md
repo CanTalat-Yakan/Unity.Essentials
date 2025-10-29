@@ -31,10 +31,14 @@ Below is an up-to-date list of UnityEssentials modules detected under `Assets/Re
 - Unity.Core.AudioMixer
 - Unity.Core.HighDefinitionRenderPipeline
 - Unity.Core.SettingsMenu
+
+
 - Unity.Dependencies.GitFolderSynchronizer
 - Unity.Dependencies.GitHubRepositoryCloner
 - Unity.Dependencies.NuGet
 - Unity.Dependencies.PackageManifestEditor
+
+
 - Unity.Editor.Attributes.Button
 - Unity.Editor.Attributes.DateTime
 - Unity.Editor.Attributes.Directory
@@ -46,37 +50,59 @@ Below is an up-to-date list of UnityEssentials modules detected under `Assets/Re
 - Unity.Editor.Attributes.OnValueChanged
 - Unity.Editor.Attributes.ReadOnly
 - Unity.Editor.Attributes.ToggleButton
+
+
 - Unity.Editor.Components.StickyNote
+
+
 - Unity.Editor.Drawer.Enum
 - Unity.Editor.Drawer.EnumFlags
 - Unity.Editor.Drawer.SceneReference
 - Unity.Editor.Drawer.ScriptableObject
 - Unity.Editor.Drawer.SerializedDictionary
+
+
 - Unity.Editor.Helper.EditorWindowDrawer
 - Unity.Editor.Helper.MouseInputFetcher
 - Unity.Editor.Helper.SimpleTreeView
+
+
 - Unity.Editor.Hooks.Hierarchy
 - Unity.Editor.Hooks.Inspector
 - Unity.Editor.Hooks.PlayerLoop
 - Unity.Editor.Hooks.UIBuilder
+
+
 - Unity.Editor.Profiling.FrameTime
+
+
 - Unity.Editor.Tools.EditorIcons
 - Unity.Editor.Tools.MaskMapGenerator
+
+
 - Unity.Environment.CelestialBodiesCalculator
 - Unity.Environment.Ocean
 - Unity.Environment.TimeOfDay
 - Unity.Environment.Weather
+
+
 - Unity.Graphics.APVLightingBaker
 - Unity.Graphics.AdvancedSpotLight
 - Unity.Graphics.BlackoutReflectionProbe
 - Unity.Graphics.IES
 - Unity.Graphics.Tonemaps
+
+
 - Unity.Humanoid.ActiveRagdoll
 - Unity.Humanoid.AnimationRigging
 - Unity.Humanoid.Daz3DGenesis9
 - Unity.Humanoid.PoseController
 - Unity.Humanoid.Ragdoll
+
+
 - Unity.Movement.CameraSpectatorController
+
+
 - Unity.Rendering.Camera.AutoExposureController
 - Unity.Rendering.Camera.FocusPointRayCaster
 - Unity.Rendering.Camera.FrameRateLimiter
@@ -84,6 +110,8 @@ Below is an up-to-date list of UnityEssentials modules detected under `Assets/Re
 - Unity.Rendering.Camera.PhysicalPropertiesController
 - Unity.Rendering.Camera.RenderTextureHandler
 - Unity.Rendering.GlobalRefreshrateLimiter
+
+
 - Unity.Systems.DependencyInjection
 - Unity.Systems.EventBus
 - Unity.Systems.PredefinedAssemblyUtilities
@@ -92,13 +120,21 @@ Below is an up-to-date list of UnityEssentials modules detected under `Assets/Re
 - Unity.Systems.Tasks
 - Unity.Systems.TickUpdate
 - Unity.Systems.Timing
+
+
 - Unity.Templates.Sponza
+
+
 - Unity.Tools.FieldBinder
 - Unity.Tools.RuntimeGizmo
 - Unity.Tools.RuntimeMonitor
 - Unity.Tools.SkinnedMeshTransfer
+
+
 - Unity.Types.ManagedArray
 - Unity.Types.ObjectPool
+
+
 - Unity.UI.Fonts
 - Unity.UI.MenuGenerator
 - Unity.UI.SplashScreen
@@ -108,6 +144,8 @@ Below is an up-to-date list of UnityEssentials modules detected under `Assets/Re
 - Unity.UI.Toolkit.ScriptComponents
 - Unity.UI.Toolkit.Transitions
 - Unity.UI.Tooltip
+
+
 - Unity.Utilities.CameraProvider
 - Unity.Utilities.Extensions
 - Unity.Utilities.ResourceLoader
