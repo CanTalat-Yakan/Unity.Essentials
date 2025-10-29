@@ -11,9 +11,9 @@ using UnityEssentials;
 
 ## Installation
 
-Install the Unity Essentials entry package via Unity's Package Manager, then install modules from the Tools menu.
+Install the Unity Essentials Core package via Unity's Package Manager, then install modules from the Tools menu.
 
-- Add the entry package (via Git URL)
+- Add the package (via Git URL)
     - Window → Package Manager
     - "+" → "Add package from git URL…"
     - Paste: `https://github.com/CanTalat-Yakan/UnityEssentials.git`
@@ -22,7 +22,7 @@ Install the Unity Essentials entry package via Unity's Package Manager, then ins
     - Tools → Install & Update UnityEssentials
     - Install all or select individual modules; run again anytime to update
 
-> Quick overview: Clone multiple GitHub repositories into your Unity project with a stored HTTPS personal access token. Filter, multi-select, and optionally scaffold asmdef/package/templates. LFS-aware.
+> Quick overview: Add the Core package via Package Manager, then use Tools → Install & Update UnityEssentials to select and update the modules you need. Modules are lightweight, editor‑first, and live under the `UnityEssentials` namespace; add or remove them at any time.
 
 ## Available packages in this project
 
