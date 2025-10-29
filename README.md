@@ -11,7 +11,7 @@ using UnityEssentials;
 
 ## Installation
 
-Install the Unity Essentials Core package via Unity's Package Manager, then install modules from the Tools menu.
+Install the Unity Essentials package via Unity's Package Manager, then install modules from the Tools menu.
 
 - Add the package (via Git URL)
     - Window → Package Manager
